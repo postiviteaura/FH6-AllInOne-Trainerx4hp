@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 namespace FH6Mod.Services;
 
 /// <summary>
-/// Persistent preferences in %APPDATA%\ChaarkorFH6Mod\settings.json.
+/// Persistent preferences in %APPDATA%\FH6AllInOneTrainer\settings.json.
 ///
 /// Read/write goes through System.Text.Json's DOM (JsonDocument + JsonObject) —
 /// NOT JsonSerializer.Deserialize&lt;T&gt;/Serialize&lt;T&gt;. The serializer's
@@ -24,7 +24,7 @@ public sealed class AppSettings
 
     public static readonly string FilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "ChaarkorFH6Mod",
+        "FH6AllInOneTrainer",
         "settings.json");
 
     public static string SettingsDir  => Path.GetDirectoryName(FilePath)!;

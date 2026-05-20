@@ -1,70 +1,76 @@
-# Chaarkor's FH6 Trainer
+# FH6 All-in-One Trainer
 
-All-in-one trainer for **Forza Horizon 6** — runtime hooks for player profile + live SQL access to the game's in-memory database. Single-file `.exe`, no extra runtime needed.
+An improved, all-in-one trainer for **Forza Horizon 6** — runtime hooks for player profile values + live SQL access to the game's in-memory database. Single-file `.exe`, no extra runtime needed.
 
-> ⚠️ **Use at your own risk.** This trainer modifies game memory. Microsoft / Turn 10 can ban your account. **Solo / Free Roam only — never online (Rivals, Eventlab, Multiplayer, leaderboards).**
+> ⚠️ **Use at your own risk.** This trainer modifies game memory. Microsoft / Turn 10 can ban your account. **Solo / Free Roam only — never use online (Rivals, Eventlab, Multiplayer, leaderboards).**
 
 ## ⬇️ Download
 
-Latest release: **[GitHub Releases](../../releases/latest)** — grab `ChaarkorFH6Mod.exe`. Run as administrator (the trainer needs to `OpenProcess` on the game).
+Latest release: **[GitHub Releases](../../releases/latest)** — grab `FH6AllInOneTrainer.exe`. Run as administrator.
 
-## ✅ Working features (FH6 — current build)
+## ✅ Working Features
 
-### Runtime hooks (Unlocks page)
-- 💰 **Credits** — custom value, locked at your number
-- 🎰 **Wheelspins** — custom value (unlock first in tutorial)
-- ⭐ **Skill Points** — custom value
-- 💸 **Sell Payout x** — multiply car sell price
+### Quick Start (Dashboard)
+- **One-click Quick Start** — 999M Credits + Free Cars + Autoshow Unlock + All Cars in Garage, instantly
 
-### SQL database actions (Database page)
-- 💰 **Free Cars (LOCK)** — BaseCost stays at 0 forever (re-applied every 10s)
-- 👁 **Autoshow All Visible (LOCK)** — every car stays in showroom
-- ✅ **Install Flags (LOCK)** — IsInstalled / IsPurchased / IsDrivable stay at 1
-- 🏷 **Clear NEW Tag** — remove persistent NEW! badges
-- 🎁 **Add All Cars** — grant every car free (reopen game to claim)
+### Runtime Hooks (Unlocks Page)
+- **Max All** — set Credits 999M, Wheelspins 999, Super Wheelspins 999, Skill Points 999K in one click
+- **Credits (CR)** — custom value with presets (10K, 100K, 1M, 100M, 999M), locked
+- **Wheelspins** — custom count with presets (10, 50, 100, 999)
+- **Super Wheelspins** — custom count with presets (10, 50, 100, 999)
+- **Skill Points** — custom value with presets (100, 1K, 10K, 999K), locked
+- **Sell Payout x** — multiply car sell price by any factor
 
-Each LOCK toggle re-applies its SQL every 10 seconds so the game can't restore the values from save. Backup tables are created automatically before the first lock — flipping the toggle OFF restores originals.
+### SQL Database (Database Page)
+- **Unlock Everything** — applies all 5 SQL cheats at once (one click)
+- **Free Cars (LOCK)** — BaseCost stays at 0 forever (re-applied every 10s)
+- **Autoshow All Visible (LOCK)** — every car stays in showroom
+- **Install Flags (LOCK)** — IsInstalled / IsPurchased / IsDrivable stay at 1
+- **Clear NEW Tag** — remove persistent NEW! badges from garage
+- **Add All Cars** — grant every car free (reopen game to claim)
 
-## ⚠️ Broken in current FH6 build (game patched)
+Each LOCK toggle re-applies its SQL every 10 seconds. Backup tables are created automatically — toggling OFF restores originals.
 
-These also don't work in Autoshow Unlocker v1.3.0 — Turn 10 changed the underlying functions:
-- ❌ Drift Score Multiplier
-- ❌ No Skill Break
+## ⚠️ Broken (game patched)
 
-## 🛡️ Stability
+- Drift Score Multiplier
+- No Skill Break
+
+## 🛡️ Stability & Safety
 
 - **CRC bypass** auto-armed before any hook (vtable function pointer swap + 10s re-arm timer)
-- **Hook self-healing** — every 10s the engine re-applies any patch the game tries to roll back
-- **ExpectedOriginal sanity check** — refuses to inject if the target bytes don't match (no crashes from outdated sigs)
-- **Auto-detach** when the game exits / crashes — no writes to dead processes
+- **Hook self-healing** — every 10s the engine re-applies patches the game tries to roll back
+- **ExpectedOriginal sanity check** — refuses to inject if target bytes don't match (no crashes from outdated signatures)
+- **Auto-detach** when the game exits or crashes — no writes to dead processes
+- **Two-phase CRC dance** — restores originals for 1 second so the game's integrity check passes, then re-applies patches
 
-## 🔧 Build from source
+## 🔧 Build from Source
 
-Requires **.NET 10 SDK**, builds on Windows or WSL2 (cross-compile to win-x64):
+Requires **.NET 10 SDK** on Windows:
 
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained \
   -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true
 ```
 
-Output: `bin/Release/net10.0-windows/win-x64/publish/ChaarkorFH6Mod.exe`
+Output: `bin/Release/net10.0-windows/win-x64/publish/FH6AllInOneTrainer.exe`
+
+## 🙏 Credits
+
+This trainer builds on the work of several people:
+
+| Who | Contribution |
+|-----|-------------|
+| **[paris' club](https://discord.gg/WSd3bRNJuJ)** | All core cheats: runtime hooks (Credits, Wheelspins, Super Wheelspins, Skill Points, Sell Payout), SQL features (Free Cars, Autoshow, Install Flags, Add All Cars, Clear NEW Tag), CRC bypass, code caves, memory injection foundation |
+| **[Chaarkor](https://github.com/Chaarkoor)** | Original Avalonia UI shell, MVVM architecture, design system, pattern scanner — [Chaarkors-FH6-Trainer](https://github.com/Chaarkoor/Chaarkors-FH6-Trainer) |
+| **[ForzaMods](https://github.com/ForzaMods/Forza-Mods-AIO)** | Upstream AOB signatures and hook techniques — [Forza-Mods-AIO](https://github.com/ForzaMods/Forza-Mods-AIO) |
+| **[Reloaded.Memory](https://github.com/Reloaded-Project/Reloaded.Memory.Sigscan)** | SIMD-accelerated AOB scanner |
+| **[changcheng967](https://github.com/changcheng967)** | All-in-one improvements: Max All, Unlock Everything, Quick Start, preset buttons, rebrand |
 
 ## 📝 License
 
 GPL-3.0 — source must remain open. See [LICENSE](LICENSE).
 
-## 🙏 Credits
-
-This trainer is a UI redesign — I don't write the cheats, I dress them up.
-
-Almost everything that actually does something here is a port of **Forza Horizon 6 - Autoshow Unlocker** by **paris' club** ([discord.gg/WSd3bRNJuJ](https://discord.gg/WSd3bRNJuJ)): every runtime hook (Credits, Wheelspins, Super Wheelspins, Skill Points, Sell Payout), every SQL feature (Free Cars, Autoshow Visible, Install Flags, Add All Cars, Clear NEW Tag), the memory injection foundation, CRC bypass, code caves — all theirs. My contribution is the Avalonia UI shell and a few QoL bits.
-
-Memory scanning powered by **[Reloaded.Memory](https://github.com/Reloaded-Project/Reloaded.Memory.Sigscan)** — SIMD-accelerated AOB scanner.
-
-## 💬 Community
-
-Bug reports, feature requests, and updates: [Chaarkor's FH6 Trainer Discord](#) *(invite link soon)*.
-
 ---
 
-**by [Chaarkor](https://github.com/Chaarkoor) · 2026 · GPL-3.0**
+**FH6 All-in-One Trainer** · 2026 · GPL-3.0 · Solo / Free Roam only

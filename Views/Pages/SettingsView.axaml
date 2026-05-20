@@ -130,10 +130,10 @@
                     </Border>
 
                     <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                        <TextBlock Text="RESTYLED BY" Classes="eyebrow" />
-                        <TextBlock Text="Chaarkor" FontSize="28" FontWeight="Bold"
+                        <TextBlock Text="FH6 ALL-IN-ONE TRAINER" Classes="eyebrow" />
+                        <TextBlock Text="All-in-One Trainer" FontSize="28" FontWeight="Bold"
                                    Foreground="{DynamicResource TextPrimary}" />
-                        <TextBlock Text="UI redesign of community FH6 mods — I don't write the cheats, I dress them up."
+                        <TextBlock Text="Credits, wheelspins, skill points, free cars — all in one place."
                                    Classes="subtle" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
                             <Border Background="{DynamicResource Surface2Brush}"
@@ -170,7 +170,7 @@
                                 <Run Text=" — the actual mods" Foreground="{DynamicResource TextPrimary}" />
                             </TextBlock>
                             <TextBlock TextWrapping="Wrap" Classes="dim"
-                                       Text="Almost everything that does something in this trainer is a port of Forza Horizon 6 - Autoshow Unlocker by paris' club: every runtime hook (Credits, Wheelspins, Super Wheelspins, Skill Points, Sell Payout), every SQL feature (Free Cars, Autoshow Visible, Install Flags, Add All Cars, Clear NEW Tag), the memory injection base, CRC bypass, code caves — all theirs. My contribution is just the Avalonia UI redesign on top." />
+                                       Text="All core cheats by paris' club: runtime hooks, SQL features, CRC bypass, code caves, memory injection. Original UI by changcheng967. Improved with Max All, Unlock Everything, Quick Start, and preset buttons." />
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
                                 <Border Background="{DynamicResource Surface2Brush}" CornerRadius="999" Padding="8,3">
                                     <TextBlock Text="discord.gg/WSd3bRNJuJ" FontSize="11"
@@ -231,9 +231,9 @@
 
             <!-- Footer -->
             <TextBlock Classes="dim" TextAlignment="Center" Margin="0,12" TextWrapping="Wrap">
-                <Run Text="Restyled by " />
-                <Run Text="Chaarkor" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
-                <Run Text=" · cheats from paris' club · 2026 · Forza Horizon 6 · Single-player only" />
+                <Run Text="Improved by " />
+                <Run Text="All-in-One Trainer" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+                <Run Text=" · original UI by Chaarkor, cheats by paris' club · 2026 · Forza Horizon 6 · Single-player only" />
             </TextBlock>
         </StackPanel>
     </ScrollViewer>

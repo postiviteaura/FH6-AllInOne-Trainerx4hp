@@ -13,9 +13,9 @@
     <Application.Styles>
         <FluentTheme />
         <materialIcons:MaterialIconStyles />
-        <StyleInclude Source="avares://ChaarkorFH6Mod/Styles/Theme.axaml" />
-        <StyleInclude Source="avares://ChaarkorFH6Mod/Styles/NavRail.axaml" />
-        <StyleInclude Source="avares://ChaarkorFH6Mod/Styles/Controls.axaml" />
+        <StyleInclude Source="avares://FH6AllInOneTrainer/Styles/Theme.axaml" />
+        <StyleInclude Source="avares://FH6AllInOneTrainer/Styles/NavRail.axaml" />
+        <StyleInclude Source="avares://FH6AllInOneTrainer/Styles/Controls.axaml" />
     </Application.Styles>
 
     <Application.Resources>
