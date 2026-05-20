@@ -25,7 +25,6 @@ public enum RuntimeProfileFeature
 
     // Batch 3 — more ForzaMods AIO signatures
     Acceleration,
-    SpeedZoneMultiplier,
     SpeedTrapMultiplier,
     MissionTimeScale,
     FreeClothing,
@@ -187,14 +186,14 @@ internal static class ProfileFeatureCatalog
             ],
         },
 
-        // Teleport to waypoint: reads waypoint coords from rsi+0x230, writes to player pos
-        // Original: 0F 10 97 30 02 00 00  (movups xmm2,[rdi+230h])
+        // Teleport to waypoint: reads waypoint coords from rdi+0x230, writes to player pos
+        // Confirmed FH6 match: 0F 10 8B 30 02 00 00 (movups xmm1,[rbx+230h])
         RuntimeProfileFeature.Teleport => new()
         {
             Key = "Teleport", Name = "Teleport to Waypoint",
-            Signature = "0F 10 ? ? ? ? ? 0F 28 ? 0F C2 ? 00 0F 50",
+            Signature = "0F 10 8B 30 02 00 00 0F 11 8F 30 02 00 00",
             MatchOffset = 0, HookSize = 7,
-            ExpectedOriginal = [15, 16, 151, 48, 2, 0, 0],
+            ExpectedOriginal = [15, 16, 139, 48, 2, 0, 0],
             ToggleOffset = 16, ValueOffset = -1,
             Asm =
             [
@@ -202,10 +201,10 @@ internal static class ProfileFeatureCatalog
                 128, 61, 13, 0, 0, 0, 1,
                 // jne skip
                 117, 2,
-                // xorps xmm2,xmm2 ; zero = teleport marker
-                15, 87, 210,
-                // movups xmm2,[rdi+230h] (original)
-                15, 16, 151, 48, 2, 0, 0,
+                // xorps xmm1,xmm1 ; zero = teleport marker
+                15, 87, 201,
+                // movups xmm1,[rbx+230h] (original)
+                15, 16, 139, 48, 2, 0, 0,
             ],
         },
 
@@ -303,11 +302,11 @@ internal static class ProfileFeatureCatalog
         },
 
         // Skill Score Multiplier: imul earned skill score by multiplier
-        // Original: 8B 78 08 48 8B 4D 60  (mov edi,[rax+8]; mov rcx,[rbp+60h])
+        // Confirmed FH6 match near: 8B 78 08 48 8B 18 48 3B DF
         RuntimeProfileFeature.SkillScoreMultiplier => new()
         {
             Key = "SkillScoreMultiplier", Name = "Skill Score Multiplier",
-            Signature = "8B 78 ? 48 8B ? ? 48 85 ? 74 ? 41 8B",
+            Signature = "8B 78 08 48 8B 18 48 3B DF",
             MatchOffset = 0, HookSize = 7,
             ExpectedOriginal = [139, 120, 8, 72, 139, 77, 96],
             ToggleOffset = 19, ValueOffset = 20,
@@ -327,11 +326,11 @@ internal static class ProfileFeatureCatalog
         },
 
         // Prize Scale: multiply wheelspin reward float
-        // Original: F3 0F 10 73 10  (movss xmm6,[rbx+10h])
+        // Confirmed FH6 match: F3 0F 10 73 10 (movss xmm6,[rbx+10h])
         RuntimeProfileFeature.PrizeScale => new()
         {
             Key = "PrizeScale", Name = "Prize Scale",
-            Signature = "F3 0F ? ? ? 33 D2 48 8B ? ? E8 ? ? ? ? 90 48 85 ? 74 ? 8B C5",
+            Signature = "F3 0F 10 73 10 44 0F 29 40",
             MatchOffset = 0, HookSize = 5,
             ExpectedOriginal = [243, 15, 16, 115, 16],
             ToggleOffset = 14, ValueOffset = 15,
@@ -417,28 +416,6 @@ internal static class ProfileFeatureCatalog
             ],
         },
 
-        // Speed Zone Multiplier: multiply speed zone score
-        // Original: F3 41 0F 5E B6 E8 00 00 00 (divss xmm6,[r14+0E8h])
-        RuntimeProfileFeature.SpeedZoneMultiplier => new()
-        {
-            Key = "SpeedZoneMultiplier", Name = "Speed Zone Multiplier",
-            Signature = "F3 41 ? ? ? ? ? ? ? 0F 28 ? 0F 28 ? ? ? 48 83 C4",
-            MatchOffset = 0, HookSize = 9,
-            ExpectedOriginal = [243, 65, 15, 94, 182, 232, 0, 0, 0],
-            ToggleOffset = 22, ValueOffset = 23,
-            Asm =
-            [
-                // cmp [toggle], 1
-                128, 61, 15, 0, 0, 0, 1,
-                // jne skip
-                117, 7,
-                // mulss xmm6,[value] (instead of dividing)
-                243, 15, 89, 53, 2, 0, 0, 0,
-                // divss xmm6,[r14+0E8h] (original)
-                243, 65, 15, 94, 182, 232, 0, 0, 0,
-            ],
-        },
-
         // Speed Trap Multiplier: multiply speed trap score
         // Original: 0F 29 44 24 30 (movaps [rsp+30h],xmm0)
         RuntimeProfileFeature.SpeedTrapMultiplier => new()
@@ -486,12 +463,12 @@ internal static class ProfileFeatureCatalog
         },
 
         // Free Clothing: set clothing item price to 0
-        // Original: 8B 88 A4 00 00 00 (mov ecx,[rax+0A4h])
+        // Confirmed FH6 match: 8B 88 A4 00 00 00 89 4D 98 (mov ecx,[rax+A4h]; mov [rbp-68],ecx)
         RuntimeProfileFeature.FreeClothing => new()
         {
             Key = "FreeClothing", Name = "Free Clothing",
-            Signature = "48 8B ? ? ? 8B 88 ? ? ? ? 39 4B",
-            MatchOffset = 5, HookSize = 6,
+            Signature = "8B 88 A4 00 00 00 89 4D",
+            MatchOffset = 0, HookSize = 6,
             ExpectedOriginal = [139, 136, 164, 0, 0, 0],
             ToggleOffset = 18, ValueOffset = -1,
             Asm =

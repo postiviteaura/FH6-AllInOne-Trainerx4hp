@@ -67,8 +67,6 @@ public partial class UnlocksViewModel : PageViewModelBase
     // --- Batch 3: new cheats ---
     [ObservableProperty] private bool _isAccelerationOn;
     [ObservableProperty] private string _accelerationText = "2.0";
-    [ObservableProperty] private bool _isSpeedZoneMultiplierOn;
-    [ObservableProperty] private string _speedZoneMultiplierText = "10";
     [ObservableProperty] private bool _isSpeedTrapMultiplierOn;
     [ObservableProperty] private string _speedTrapMultiplierText = "10";
     [ObservableProperty] private bool _isMissionTimeScaleOn;
@@ -351,15 +349,6 @@ public partial class UnlocksViewModel : PageViewModelBase
     }
     [RelayCommand] private void ApplyAcceleration()
         => ApplyValue(RuntimeProfileFeature.Acceleration, ParseFloatAsIntBits(AccelerationText, 2.0f), "Acceleration");
-
-    [RelayCommand] private void ToggleSpeedZoneMultiplier()
-    {
-        var on = !_cheats.IsActive(RuntimeProfileFeature.SpeedZoneMultiplier);
-        Toggle(RuntimeProfileFeature.SpeedZoneMultiplier, on, ParseFloatAsIntBits(SpeedZoneMultiplierText, 10f), "Speed Zone x");
-        IsSpeedZoneMultiplierOn = _cheats.IsActive(RuntimeProfileFeature.SpeedZoneMultiplier);
-    }
-    [RelayCommand] private void ApplySpeedZoneMultiplier()
-        => ApplyValue(RuntimeProfileFeature.SpeedZoneMultiplier, ParseFloatAsIntBits(SpeedZoneMultiplierText, 10f), "Speed Zone x");
 
     [RelayCommand] private void ToggleSpeedTrapMultiplier()
     {
