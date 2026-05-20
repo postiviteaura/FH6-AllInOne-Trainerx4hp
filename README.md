@@ -45,18 +45,26 @@ Latest release: **[GitHub Releases](../../releases/latest)** — grab `FH6AllInO
 
 Each LOCK toggle re-applies its SQL every 10 seconds. Backup tables are created automatically — toggling OFF restores originals.
 
-## ⚠️ Broken (game patched)
+## 🛡️ Safety Features (v3.0.0)
 
-- Drift Score Multiplier
-- No Skill Break
+- **Toggle locks** — all cheat toggles are disabled when FH6 is not running; red warning banner shown
+- **System tray** — closing the window minimizes to tray instead of quitting; right-click for Show/Exit
+- **Conflict detection** — warns if another trainer (ForzaMods AIO, WeMod, etc.) is already running
+- **Signature scan mode** — test all AOB patterns against current FH6 binary without installing hooks
+- **Profile system** — save and load cheat configurations to named JSON profiles
 
-## 🛡️ Stability & Safety
+## 🛡️ Stability & Anti-Detection
 
 - **CRC bypass** auto-armed before any hook (vtable function pointer swap + 10s re-arm timer)
 - **Hook self-healing** — every 10s the engine re-applies patches the game tries to roll back
 - **ExpectedOriginal sanity check** — refuses to inject if target bytes don't match (no crashes from outdated signatures)
 - **Auto-detach** when the game exits or crashes — no writes to dead processes
 - **Two-phase CRC dance** — restores originals for 1 second so the game's integrity check passes, then re-applies patches
+
+## ⚠️ Broken (game patched)
+
+- Drift Score Multiplier
+- No Skill Break
 
 ## 🔧 Build from Source
 
@@ -77,7 +85,7 @@ Output: `bin/Release/net10.0-windows/win-x64/publish/FH6AllInOneTrainer.exe`
 | **[ForzaMods](https://github.com/ForzaMods/Forza-Mods-AIO)** | AOB signatures for Freeze AI, Teleport, No Clip, Gravity, No Water Drag, Time of Day, Skill Score Multiplier, Prize Scale, Remove Build Cap, Race Time Scale — [Forza-Mods-AIO](https://github.com/ForzaMods/Forza-Mods-AIO) |
 | **[Chaarkor](https://github.com/Chaarkoor)** | Original Avalonia UI shell, MVVM architecture, design system, pattern scanner — [Chaarkors-FH6-Trainer](https://github.com/Chaarkoor/Chaarkors-FH6-Trainer) |
 | **[Reloaded.Memory](https://github.com/Reloaded-Project/Reloaded.Memory.Sigscan)** | SIMD-accelerated AOB scanner |
-| **[changcheng967](https://github.com/changcheng967)** | All-in-one improvements: Quick Start, Max All, Unlock Everything, 10 new cheats, UI redesign, rebrand |
+| **[changcheng967](https://github.com/changcheng967)** | All-in-one improvements: Quick Start, Max All, Unlock Everything, 10 new cheats, system tray, safety locks, UI redesign, rebrand |
 
 ## 📝 License
 
@@ -85,4 +93,4 @@ GPL-3.0 — source must remain open. See [LICENSE](LICENSE).
 
 ---
 
-**FH6 All-in-One Trainer** · v2.0.0 · 2026 · GPL-3.0 · Solo / Free Roam only
+**FH6 All-in-One Trainer** · v3.0.0 · 2026 · GPL-3.0 · Solo / Free Roam only
