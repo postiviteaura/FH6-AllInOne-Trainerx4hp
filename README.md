@@ -15,9 +15,9 @@ Based on community reports (Steam version). **Your results may vary by game vers
 | Feature | Status | Notes |
 |---------|--------|-------|
 | SQL: Free Cars, Free Upgrades, Autoshow | Working | Database writes, reliable |
-| SQL: Drift 10x, Torque 2x, Grip, Drag | Untested | New in v4.7.0 |
-| Credits, Wheelspins, Super Wheelspins | Working | v4.8.0: FNV direct-write (no CRC bypass needed); falls back to NOP-sled |
-| Skill Points | Working | v4.8.0: FNV direct-write; falls back to NOP-sled |
+| SQL: Drift 10x, Torque 2x, Grip, Drag | Untested | New physics SQL cheats |
+| Credits, Wheelspins, Super Wheelspins | Working | FNV direct-write (no CRC bypass); falls back to NOP-sled |
+| Skill Points | Working | FNV direct-write; falls back to NOP-sled |
 | Freeze AI | Working | Signature verified across builds |
 | Drift Score Multiplier | Working | Community confirmed |
 | Teleport, Gravity, Time of Day | Working | Signatures match across builds |
@@ -25,7 +25,7 @@ Based on community reports (Steam version). **Your results may vary by game vers
 | Acceleration, Race/Mission Time | Working | Signatures match across builds |
 | Speed Trap, Remove Build Cap, Free Clothing | Working | Signatures match across builds |
 | NoClip | Broken | Hooks wrong function |
-| No Skill Break | Working | v4.8.0: Alt signatures + context validation |
+| No Skill Break | Working | Alt signatures + context validation |
 | XP Override | Broken | No known working approach |
 | Add All Cars | Partial | Only adds DLC cars (not all 721) |
 
@@ -82,23 +82,6 @@ Requires **.NET 10 SDK** on Windows:
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained
 ```
-
-## Changelog
-
-### v4.8.0
-- FNV-1a direct profile struct writes for Credits, Wheelspins, Super Wheelspins, Skill Points
-- No `.text` modification needed for profile cheats — writes directly to heap struct
-- AltSignatures with progressive fallback for all profile setters + NoSkillBreak
-- Context-aware signature validation (permission check pattern)
-- Cross-cheat address deduplication
-- Struct offset extraction and diagnostic logging
-- Auto-re-resolution if profile struct moves at runtime
-
-### v4.7.0
-- SQL-based physics cheats (drift 10x, max traction, torque 2x, reduced drag)
-
-### v4.6.0
-- NOP-sled unlocks, value encryption bypass, improved scanner
 
 ## Credits
 
