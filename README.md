@@ -16,8 +16,8 @@ Based on community reports (Steam version). **Your results may vary by game vers
 |---------|--------|-------|
 | SQL: Free Cars, Free Upgrades, Autoshow | Working | Database writes, reliable |
 | SQL: Drift 10x, Torque 2x, Grip, Drag | Untested | New in v4.7.0 |
-| Credits, Wheelspins, Super Wheelspins | Working | Signatures may not match all game builds |
-| Skill Points | Working | Signatures may not match all game builds |
+| Credits, Wheelspins, Super Wheelspins | Working | v4.8.0: FNV direct-write (no CRC bypass needed); falls back to NOP-sled |
+| Skill Points | Working | v4.8.0: FNV direct-write; falls back to NOP-sled |
 | Freeze AI | Working | Signature verified across builds |
 | Drift Score Multiplier | Working | Community confirmed |
 | Teleport, Gravity, Time of Day | Working | Signatures match across builds |
@@ -25,13 +25,11 @@ Based on community reports (Steam version). **Your results may vary by game vers
 | Acceleration, Race/Mission Time | Working | Signatures match across builds |
 | Speed Trap, Remove Build Cap, Free Clothing | Working | Signatures match across builds |
 | NoClip | Broken | Hooks wrong function |
-| No Skill Break | Version-dependent | Signature may not match all builds |
+| No Skill Break | Working | v4.8.0: Alt signatures + context validation |
 | XP Override | Broken | No known working approach |
 | Add All Cars | Partial | Only adds DLC cars (not all 721) |
 
 If a cheat says "signature not found", your game build may differ. Use the **Signature Scan** in Settings to check compatibility.
-
-Use the **Signature Scan** in Settings to check which cheats match your game build.
 
 ## Features
 
@@ -39,8 +37,10 @@ Use the **Signature Scan** in Settings to check which cheats match your game bui
 - **Quick Start** — Free Cars + Autoshow Unlock + Install Flags + All Cars, one click
 - **Max All** — max Credits, Wheelspins, Super Wheelspins, Skill Points
 
-### Profile Values (memory hooks)
-- Credits, Wheelspins, Super Wheelspins, Skill Points, Sell Payout
+### Profile Values (FNV direct-write)
+- Credits, Wheelspins, Super Wheelspins, Skill Points
+- Writes directly to profile struct in heap memory — no `.text` modification, no CRC bypass needed for these 4 cheats
+- Falls back to NOP-sled if struct resolution fails
 
 ### Racing & World
 - Freeze AI, Teleport, Gravity, No Water Drag, Time of Day, Acceleration, Free Clothing
@@ -62,10 +62,18 @@ Use the **Signature Scan** in Settings to check which cheats match your game bui
 
 ## Anti-Cheat Bypass
 
-- CRC bypass with 5s heartbeat + jitter
+- CRC bypass with 5s heartbeat + jitter (only needed for non-profile cheats)
+- FNV-1a direct struct writes for profile fields (no CRC bypass needed)
 - Value Encryption bypass (RET at encryption prologue)
 - 5 integrity check patches
 - Thread-safe patching with ExpectedOriginal sanity check
+
+## Signature System
+
+- Primary + AltSignatures with progressive fallback (longest to shortest)
+- Context-aware validation (permission check pattern must exist near match)
+- Cross-cheat address deduplication
+- Struct offset extraction and logging
 
 ## Build from Source
 
@@ -74,6 +82,23 @@ Requires **.NET 10 SDK** on Windows:
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained
 ```
+
+## Changelog
+
+### v4.8.0
+- FNV-1a direct profile struct writes for Credits, Wheelspins, Super Wheelspins, Skill Points
+- No `.text` modification needed for profile cheats — writes directly to heap struct
+- AltSignatures with progressive fallback for all profile setters + NoSkillBreak
+- Context-aware signature validation (permission check pattern)
+- Cross-cheat address deduplication
+- Struct offset extraction and diagnostic logging
+- Auto-re-resolution if profile struct moves at runtime
+
+### v4.7.0
+- SQL-based physics cheats (drift 10x, max traction, torque 2x, reduced drag)
+
+### v4.6.0
+- NOP-sled unlocks, value encryption bypass, improved scanner
 
 ## Credits
 
@@ -84,7 +109,7 @@ dotnet publish -c Release -r win-x64 --self-contained
 | **[Omkmakwana](https://github.com/Omkmakwana/FH6Trainer)** | NOP-sled approach, Add All Cars |
 | **[matkhl](https://www.unknowncheats.me/forum/other-games/752793)** | Free Upgrades SQL (47 tables), database dumper |
 | **[Chaarkor](https://github.com/Chaarkoor)** | Original Avalonia UI shell, MVVM architecture |
-| **[changcheng967](https://github.com/changcheng967)** | All-in-one improvements, physics SQL cheats, value encryption bypass |
+| **[changcheng967](https://github.com/changcheng967)** | All-in-one improvements, physics SQL cheats, FNV direct-write |
 
 ## License
 

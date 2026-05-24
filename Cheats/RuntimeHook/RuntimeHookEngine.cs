@@ -15,6 +15,8 @@ public sealed class RuntimeHookEngine : IDisposable
 {
     private readonly object _lock = new();
     private readonly Dictionary<string, RuntimeDetour> _hooks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<ulong> _hookedAddresses = new();
+    private FnvProfileResolver? _fnvResolver;
 
     private IntPtr _handle;
     private Process? _process;
@@ -75,45 +77,58 @@ public sealed class RuntimeHookEngine : IDisposable
             {
                 var desc = ProfileFeatureCatalog.Get(f);
                 var brokenPrefix = desc.BrokenNote is not null ? $"[BROKEN: {desc.BrokenNote}] " : "";
-                var pattern = Pattern.Parse(desc.Signature);
                 bool found = false;
                 string detail = $"{brokenPrefix}Signature not found";
 
-                foreach (var off in Pattern.FindAll(moduleBytes, pattern, 128))
+                var sigs = new List<(string Sig, string Label)> { (desc.Signature, "primary") };
+                foreach (var alt in desc.AltSignatures)
+                    sigs.Add((alt, "alt"));
+
+                foreach (var (sig, label) in sigs)
                 {
-                    ulong hookAddr;
-                    if (desc.ResolveCallTarget)
-                    {
-                        var callAddr = _mainBase + (ulong)off;
-                        var head = ReadBytes(callAddr, 5);
-                        if (head.Length < 5 || head[0] != 0xE8) continue;
-                        var rel = BitConverter.ToInt32(head, 1);
-                        hookAddr = (ulong)((long)(callAddr + 5) + rel + desc.CallTargetOffset);
-                    }
-                    else
-                    {
-                        hookAddr = (ulong)((long)_mainBase + off + desc.MatchOffset);
-                    }
+                    if (found) break;
+                    var pattern = Pattern.Parse(sig);
 
-                    var original = ReadBytes(hookAddr, desc.HookSize);
-                    if (original.Length < desc.HookSize) continue;
+                    foreach (var off in Pattern.FindAll(moduleBytes, pattern, 128))
+                    {
+                        ulong hookAddr;
+                        if (desc.ResolveCallTarget)
+                        {
+                            var callAddr = _mainBase + (ulong)off;
+                            var head = ReadBytes(callAddr, 5);
+                            if (head.Length < 5 || head[0] != 0xE8) continue;
+                            var rel = BitConverter.ToInt32(head, 1);
+                            hookAddr = (ulong)((long)(callAddr + 5) + rel + desc.CallTargetOffset);
+                        }
+                        else
+                        {
+                            hookAddr = (ulong)((long)_mainBase + off + desc.MatchOffset);
+                        }
 
-                    if (original.Length > 0 && original[0] == 0xE9)
-                    {
-                        detail = "Already patched by another tool";
-                        continue;
-                    }
+                        var original = ReadBytes(hookAddr, desc.HookSize);
+                        if (original.Length < desc.HookSize) continue;
 
-                    found = true;
-                    if (BytesStartWith(original, desc.ExpectedOriginal))
-                    {
-                        detail = $"{brokenPrefix}Match @ 0x{hookAddr:X} (exact)";
+                        if (original.Length > 0 && original[0] == 0xE9)
+                        {
+                            detail = "Already patched by another tool";
+                            continue;
+                        }
+
+                        if (!string.IsNullOrEmpty(desc.ContextPattern) && !HasContextPattern(moduleBytes, off, desc.ContextPattern))
+                            continue;
+
+                        found = true;
+                        var offsetInfo = ExtractStructOffset(original, desc);
+                        if (BytesStartWith(original, desc.ExpectedOriginal))
+                        {
+                            detail = $"{brokenPrefix}Match @ 0x{hookAddr:X} ({label}, exact{offsetInfo})";
+                        }
+                        else
+                        {
+                            detail = $"{brokenPrefix}Match @ 0x{hookAddr:X} ({label}, dynamic — bytes: {FormatBytes(original)}{offsetInfo})";
+                        }
+                        break;
                     }
-                    else
-                    {
-                        detail = $"{brokenPrefix}Match @ 0x{hookAddr:X} (dynamic — bytes: {FormatBytes(original)})";
-                    }
-                    break;
                 }
 
                 results.Add((f, found, detail));
@@ -132,8 +147,11 @@ public sealed class RuntimeHookEngine : IDisposable
     public int    MainSize     => _mainSize;
     public byte[] ReadBytesPublic(ulong addr, int len) => ReadBytes(addr, len);
     public ulong  ReadUInt64Public(ulong addr)         => ReadUInt64(addr);
+    public int    ReadInt32Public(ulong addr)           => ReadInt32(addr);
     public void   WriteBytesPublic(ulong addr, byte[] data) => WriteBytes(addr, data);
+    public void   WriteInt32Public(ulong addr, int value) => WriteInt32(addr, value);
     public bool   IsExecutableAddressPublic(ulong addr) => IsExecutableAddress(addr);
+    public bool   IsAddressHooked(ulong addr) => _hookedAddresses.Contains(addr);
     public void   LogPublic(string msg) => L(msg);
 
     public string DiagnosticsTail(int lines = 12)
@@ -206,6 +224,8 @@ public sealed class RuntimeHookEngine : IDisposable
         RestoreRuntimeProfileHooks();
         RestoreCrcPointer();
         FreeCrcRetStub();
+        _fnvResolver?.Dispose();
+        _fnvResolver = null;
 
         _process?.Dispose();
         _process = null;
@@ -253,6 +273,7 @@ public sealed class RuntimeHookEngine : IDisposable
             }
             if (_hooks.Count > 0) L($"Restored {_hooks.Count} runtime hook(s).");
             _hooks.Clear();
+            _hookedAddresses.Clear();
         }
     }
 
@@ -297,6 +318,45 @@ public sealed class RuntimeHookEngine : IDisposable
             error = $"{desc.Name} is disabled: {desc.BrokenNote}";
             return false;
         }
+
+        // Try FNV direct-write path for profile fields that support it
+        if (desc.SupportsDirectWrite)
+        {
+            try
+            {
+                var resolver = EnsureFnvResolver();
+                if (resolver != null)
+                {
+                    var moduleBytes = ReadBytes(_mainBase, _mainSize);
+                    if (moduleBytes.Length > 0 && resolver.TryResolve(feature, moduleBytes))
+                    {
+                        if (!enabled)
+                        {
+                            resolver.StopLock(feature);
+                            L($"{desc.Name}: direct-write lock STOPPED");
+                            return true;
+                        }
+                        resolver.StartLock(feature, value, 5000);
+                        L($"{desc.Name}: direct-write lock STARTED, value={value}, struct=0x{resolver.StructBase:X}");
+                        return true;
+                    }
+                }
+                L($"{desc.Name}: FNV resolution failed, falling back to NOP-sled");
+            }
+            catch (Exception ex)
+            {
+                L($"{desc.Name}: FNV direct-write failed ({ex.Message}), falling back to NOP-sled");
+            }
+        }
+
+        // Legacy NOP-sled / code-cave path
+        return ApplyProfileLegacy(feature, value, enabled, out error);
+    }
+
+    private bool ApplyProfileLegacy(RuntimeProfileFeature feature, int value, bool enabled, out string? error)
+    {
+        error = null;
+        var desc = ProfileFeatureCatalog.Get(feature);
         try
         {
             RuntimeDetour det;
@@ -327,6 +387,26 @@ public sealed class RuntimeHookEngine : IDisposable
             L($"{desc.Name} apply failed: {ex.Message}");
             return false;
         }
+    }
+
+    private FnvProfileResolver? EnsureFnvResolver()
+    {
+        if (_fnvResolver != null) return _fnvResolver;
+        if (_mainBase == 0 || _mainSize <= 0) return null;
+
+        var moduleBytes = ReadBytes(_mainBase, _mainSize);
+        if (moduleBytes.Length == 0) return null;
+
+        _fnvResolver = new FnvProfileResolver(this);
+        if (!_fnvResolver.ResolveStructBase(moduleBytes))
+        {
+            _fnvResolver.Dispose();
+            _fnvResolver = null;
+            L("FNV: Could not resolve profile struct base");
+            return null;
+        }
+        L($"FNV: Profile struct base resolved at 0x{_fnvResolver.StructBase:X}");
+        return _fnvResolver;
     }
 
     public bool UpdateValue(RuntimeProfileFeature feature, int value, out string? error)
@@ -383,75 +463,151 @@ public sealed class RuntimeHookEngine : IDisposable
     }
 
     /// <summary>
-    /// Multi-candidate signature resolver.
-    /// Walks up to 128 pattern matches and picks the best candidate:
-    ///  1. Exact match (bytes == ExpectedOriginal) — preferred
-    ///  2. Any non-patched candidate — accepted with dynamic byte patching
-    /// This means game updates that shift register/offset encodings won't break cheats.
+    /// Multi-candidate signature resolver with context-aware validation.
+    /// Tries primary signature first, then AltSignatures as fallbacks.
+    /// For each match, validates ContextPattern (permission check) within 256 bytes before.
+    /// Deduplicates against addresses already claimed by other cheats.
+    /// Picks the best candidate:
+    ///  1. Exact match (bytes == ExpectedOriginal) with context — preferred
+    ///  2. Context-validated dynamic candidate — accepted with dynamic byte patching
+    ///  3. Any non-patched candidate — last resort
     /// </summary>
     private ulong FindProfileHookTarget(byte[] moduleBytes, RuntimeProfileHookDescriptor desc)
     {
-        var pattern = Pattern.Parse(desc.Signature);
+        var sigs = new List<(string Sig, string Label)> { (desc.Signature, "primary") };
+        foreach (var alt in desc.AltSignatures)
+            sigs.Add((alt, "alt"));
+
         bool anyMatchFound = false;
         bool anyTargetPatched = false;
         string firstMismatchSample = string.Empty;
+        ulong? contextCandidate = null;
         ulong? dynamicCandidate = null;
 
-        foreach (var off in Pattern.FindAll(moduleBytes, pattern, 128))
+        foreach (var (sig, label) in sigs)
         {
-            anyMatchFound = true;
-
-            ulong hookAddr;
-            if (desc.ResolveCallTarget)
+            var pattern = Pattern.Parse(sig);
+            foreach (var off in Pattern.FindAll(moduleBytes, pattern, 128))
             {
-                var callAddr = _mainBase + (ulong)off;
-                var head = ReadBytes(callAddr, 5);
-                if (head.Length < 5 || head[0] != 0xE8) continue;
-                var rel = BitConverter.ToInt32(head, 1);
-                hookAddr = (ulong)((long)(callAddr + 5) + rel + desc.CallTargetOffset);
+                anyMatchFound = true;
+
+                ulong hookAddr;
+                if (desc.ResolveCallTarget)
+                {
+                    var callAddr = _mainBase + (ulong)off;
+                    var head = ReadBytes(callAddr, 5);
+                    if (head.Length < 5 || head[0] != 0xE8) continue;
+                    var rel = BitConverter.ToInt32(head, 1);
+                    hookAddr = (ulong)((long)(callAddr + 5) + rel + desc.CallTargetOffset);
+                }
+                else
+                {
+                    hookAddr = (ulong)((long)_mainBase + off + desc.MatchOffset);
+                }
+
+                // Skip addresses already claimed by another cheat
+                if (_hookedAddresses.Contains(hookAddr))
+                {
+                    L($"{desc.Name}: match at 0x{hookAddr:X} ({label}) — address already used by another cheat, skipping");
+                    continue;
+                }
+
+                var original = ReadBytes(hookAddr, desc.HookSize);
+                if (original.Length < desc.HookSize) continue;
+
+                if (original.Length > 0 && original[0] == 0xE9)
+                {
+                    L($"{desc.Name}: match at 0x{hookAddr:X} ({label}) — already patched (JMP), skipping");
+                    anyTargetPatched = true;
+                    continue;
+                }
+
+                // Context-aware validation: permission check pattern must exist within 256 bytes before match
+                if (!string.IsNullOrEmpty(desc.ContextPattern) && !HasContextPattern(moduleBytes, off, desc.ContextPattern))
+                {
+                    L($"{desc.Name}: match at 0x{hookAddr:X} ({label}) — context pattern not found nearby, skipping");
+                    continue;
+                }
+
+                // Extract struct offset from the instruction for diagnostics
+                var offsetInfo = ExtractStructOffset(original, desc);
+
+                // Best case: exact match
+                if (BytesStartWith(original, desc.ExpectedOriginal))
+                {
+                    L($"{desc.Name}: match at 0x{hookAddr:X} ({label}) — exact{offsetInfo}");
+                    _hookedAddresses.Add(hookAddr);
+                    return hookAddr;
+                }
+
+                // First context-validated dynamic candidate wins
+                contextCandidate ??= hookAddr;
+                L($"{desc.Name}: match at 0x{hookAddr:X} ({label}) — context OK, dynamic candidate{offsetInfo}");
+
+                dynamicCandidate ??= hookAddr;
+                if (string.IsNullOrEmpty(firstMismatchSample))
+                    firstMismatchSample = $"expected {FormatBytes(desc.ExpectedOriginal)}, got {FormatBytes(original)}";
             }
-            else
-            {
-                hookAddr = (ulong)((long)_mainBase + off + desc.MatchOffset);
-            }
+        }
 
-            var original = ReadBytes(hookAddr, desc.HookSize);
-            if (original.Length < desc.HookSize) continue;
-
-            // Best case: exact match
-            if (BytesStartWith(original, desc.ExpectedOriginal))
-            {
-                L($"{desc.Name}: match at 0x{hookAddr:X} — bytes match expected");
-                return hookAddr;
-            }
-
-            // Track already-patched targets
-            if (original.Length > 0 && original[0] == 0xE9)
-            {
-                L($"{desc.Name}: match at 0x{hookAddr:X} — already patched (JMP), skipping");
-                anyTargetPatched = true;
-                continue;
-            }
-
-            // Accept first non-patched candidate for dynamic patching
-            dynamicCandidate ??= hookAddr;
-            L($"{desc.Name}: match at 0x{hookAddr:X} — byte mismatch, dynamic candidate");
-
-            if (string.IsNullOrEmpty(firstMismatchSample))
-                firstMismatchSample = $"expected {FormatBytes(desc.ExpectedOriginal)}, got {FormatBytes(original)}";
+        if (contextCandidate.HasValue)
+        {
+            L($"{desc.Name}: using context-validated dynamic candidate at 0x{contextCandidate.Value:X}. {firstMismatchSample}");
+            _hookedAddresses.Add(contextCandidate.Value);
+            return contextCandidate.Value;
         }
 
         if (dynamicCandidate.HasValue)
         {
             L($"{desc.Name}: ExpectedOriginal mismatch — using dynamic byte patching. {firstMismatchSample}");
+            _hookedAddresses.Add(dynamicCandidate.Value);
             return dynamicCandidate.Value;
         }
 
         if (!anyMatchFound)
-            throw new InvalidOperationException($"{desc.Name} signature was not found.\nSig: {desc.Signature}");
+            throw new InvalidOperationException($"{desc.Name} signature was not found (tried primary + {desc.AltSignatures.Length} alts).\nPrimary: {desc.Signature}");
         if (anyTargetPatched)
             throw new InvalidOperationException($"{desc.Name} hook target already patched by another tool. Close other trainers and retry.");
         throw new InvalidOperationException($"{desc.Name} hook target bytes mismatch (FH6 may have updated). {firstMismatchSample}");
+    }
+
+    /// <summary>
+    /// In-place context search — scans moduleBytes[matchOffset-256..matchOffset]
+    /// without allocating a sub-array.
+    /// </summary>
+    private static bool HasContextPattern(byte[] moduleBytes, int matchOffset, string contextPattern)
+    {
+        var ctx = Pattern.Parse(contextPattern);
+        int searchStart = Math.Max(0, matchOffset - 256);
+        int searchEnd = matchOffset - ctx.Length;
+        if (searchEnd < searchStart) return false;
+        for (var i = searchStart; i <= searchEnd; i++)
+        {
+            var match = true;
+            for (var j = 0; j < ctx.Length; j++)
+            {
+                if (ctx[j] != -1 && moduleBytes[i + j] != ctx[j]) { match = false; break; }
+            }
+            if (match) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Extracts the struct displacement from MOV/ADD [rbx+disp32], eax instructions
+    /// for diagnostic logging. Returns empty string if not applicable.
+    /// </summary>
+    private static string ExtractStructOffset(byte[] original, RuntimeProfileHookDescriptor desc)
+    {
+        if (original.Length < 6) return "";
+        // 89 83 XX XX XX XX = MOV [rbx+disp32], eax
+        // 01 83 XX XX XX XX = ADD [rbx+disp32], eax
+        if ((original[0] == 0x89 || original[0] == 0x01) && original[1] == 0x83)
+        {
+            var offset = BitConverter.ToInt32(original, 2);
+            return $" [rbx+0x{offset:X}]";
+        }
+        return "";
     }
 
     private RuntimeDetour CreateRuntimeDetour(RuntimeProfileHookDescriptor desc, ulong hookAddr)

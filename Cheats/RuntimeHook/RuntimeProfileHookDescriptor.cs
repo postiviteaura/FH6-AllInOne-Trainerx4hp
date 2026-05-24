@@ -36,6 +36,8 @@ internal sealed class RuntimeProfileHookDescriptor
     public string Key = "";
     public string Name = "";
     public string Signature = "";
+    public string[] AltSignatures = [];
+    public string? ContextPattern;
     public int MatchOffset;
     public bool ResolveCallTarget;
     public int CallTargetOffset;
@@ -53,6 +55,8 @@ internal sealed class RuntimeProfileHookDescriptor
     public int ValueOffset = -1;
     /// <summary>Non-null means this cheat hooks the wrong function in FH6 — do not install.</summary>
     public string? BrokenNote;
+    /// <summary>If true, use FNV direct struct write instead of NOP-sled.</summary>
+    public bool SupportsDirectWrite;
 }
 
 internal sealed class RuntimeDetour
@@ -79,42 +83,80 @@ internal static class ProfileFeatureCatalog
             Signature = "89 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3 CC CC CC CC 48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC ?? 8B F2",
             MatchOffset = 0, HookSize = 6,
             ExpectedOriginal = [0x89, 0x83],
+            AltSignatures =
+            [
+                "89 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3 CC CC CC CC 48 89 5C 24",
+                "89 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3 CC CC CC 48 89 5C 24",
+                "89 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3",
+                "89 83 ?? ?? ?? ??",
+            ],
+            ContextPattern = "E8 ?? ?? ?? ?? 84 C0",
             ToggleOffset = 6, ValueOffset = -1,
             Asm = [0x90, 0x90, 0x90, 0x90, 0x90, 0x90], // NOP 6 bytes
             OriginalRegions = [],
+            SupportsDirectWrite = true,
         },
         RuntimeProfileFeature.Wheelspins => new()
         {
             Key = "Wheelspins", Name = "Wheelspins",
-            // NOP-sled: disables `ADD [RBX+offset], EAX` that writes wheelspin count.
             Signature = "01 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3 CC CC CC 48 89 5C 24 ?? 57",
+            AltSignatures =
+            [
+                "01 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3 CC CC CC CC 48 89 5C 24",
+                "01 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3",
+                "01 83 ?? ?? ?? ?? 8B 83 ?? ?? ?? ?? 48 8B 5C 24",
+                "01 83 ?? ?? ?? ?? 8B 83",
+                "01 83 ?? ?? ?? ??",
+            ],
+            ContextPattern = "E8 ?? ?? ?? ?? 84 C0",
             MatchOffset = 0, HookSize = 6,
             ExpectedOriginal = [0x01, 0x83],
             ToggleOffset = 6, ValueOffset = -1,
             Asm = [0x90, 0x90, 0x90, 0x90, 0x90, 0x90],
             OriginalRegions = [],
+            SupportsDirectWrite = true,
         },
         RuntimeProfileFeature.SuperWheelspins => new()
         {
             Key = "SuperWheelspins", Name = "Super Wheelspins",
-            // Same ADD [RBX+offset], EAX pattern but for super wheelspins — different context
             Signature = "01 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3 CC CC CC 48 89 5C 24 ?? 57 48 83 EC",
+            AltSignatures =
+            [
+                "01 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3 CC CC CC CC 48 89 5C 24",
+                "01 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3 CC CC CC 48 89 5C 24",
+                "01 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3",
+                "01 83 ?? ?? ?? ?? 8B 83 ?? ?? ?? ?? 48 8B 5C 24",
+                "01 83 ?? ?? ?? ?? 8B 83",
+                "01 83 ?? ?? ?? ??",
+            ],
+            ContextPattern = "E8 ?? ?? ?? ?? 84 C0",
             MatchOffset = 0, HookSize = 6,
             ExpectedOriginal = [0x01, 0x83],
             ToggleOffset = 6, ValueOffset = -1,
             Asm = [0x90, 0x90, 0x90, 0x90, 0x90, 0x90],
             OriginalRegions = [],
+            SupportsDirectWrite = true,
         },
         RuntimeProfileFeature.SkillPoints => new()
         {
             Key = "SkillPoints", Name = "Skill Points",
-            // NOP-sled: disables `ADD [RBX+offset], EAX` that writes skill points.
             Signature = "01 83 ?? ?? ?? ?? 8B 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4",
+            AltSignatures =
+            [
+                "01 83 ?? ?? ?? ?? 8B 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 48 83 C4 ?? 5F C3",
+                "01 83 ?? ?? ?? ?? 8B 83 ?? ?? ?? ?? 48 8B 5C 24 ?? 5F C3",
+                "01 83 ?? ?? ?? ?? 8B 83 ?? ?? ?? ?? 48 8B 5C 24",
+                "01 83 ?? ?? ?? ?? 8B 83 ?? ?? ?? ?? 48 8B",
+                "01 83 ?? ?? ?? ?? 8B 83",
+                "01 83 ?? ?? ?? ??",
+            ],
+            ContextPattern = "E8 ?? ?? ?? ?? 84 C0",
             MatchOffset = 0, HookSize = 6,
             ExpectedOriginal = [0x01, 0x83],
             ToggleOffset = 6, ValueOffset = -1,
             Asm = [0x90, 0x90, 0x90, 0x90, 0x90, 0x90],
             OriginalRegions = [],
+            SupportsDirectWrite = true,
         },
         RuntimeProfileFeature.DriftScoreMultiplier => new()
         {
@@ -135,6 +177,12 @@ internal static class ProfileFeatureCatalog
         {
             Key = "NoSkillBreak", Name = "No Skill Break",
             Signature = "0F B6 ? 40 38 ? ? ? ? ? 74 ? 84 C0",
+            AltSignatures =
+            [
+                "0F B6 ? 40 38 ? ? ? ? ? 74 ?",
+                "0F B6 ? 40 38 ? ? ? ? ?",
+                "0F B6 ? 40 38",
+            ],
             MatchOffset = 0, HookSize = 10,
             ExpectedOriginal = [15, 182, 240, 64, 56, 171, 116, 2, 0, 0],
             ToggleOffset = 26, ValueOffset = -1,
