@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:FH6Mod.ViewModels"
+        xmlns:pages="using:FH6Mod.Views.Pages"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="880" d:DesignHeight="620"
@@ -13,7 +14,7 @@
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/logo.png">
 
-    <Grid RowDefinitions="Auto,Auto,*">
+    <Grid RowDefinitions="Auto,*">
 
         <!-- Title bar -->
         <Border Grid.Row="0" Padding="16,8"
@@ -35,25 +36,15 @@
             </Grid>
         </Border>
 
-        <!-- Tab bar -->
-        <Border Grid.Row="1"
-                Background="{DynamicResource Surface1Brush}"
-                BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal" Margin="12,0">
-                <Button Classes="tab" Content="Cheats"
-                        IsEnabled="{Binding SelectedTab, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter=0}"
-                        Command="{Binding SelectTabCommand}" CommandParameter="0" />
-                <Button Classes="tab" Content="Database"
-                        IsEnabled="{Binding SelectedTab, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter=1}"
-                        Command="{Binding SelectTabCommand}" CommandParameter="1" />
-                <Button Classes="tab" Content="Settings"
-                        IsEnabled="{Binding SelectedTab, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter=2}"
-                        Command="{Binding SelectTabCommand}" CommandParameter="2" />
+        <!-- Single scrollable page with all sections -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <pages:UnlocksView DataContext="{Binding UnlocksPage}" />
+                <Border Height="1" Background="{DynamicResource SurfaceBorderBrush}" Margin="20,0" />
+                <pages:DatabaseView DataContext="{Binding DatabasePage}" />
+                <Border Height="1" Background="{DynamicResource SurfaceBorderBrush}" Margin="20,0" />
+                <pages:SettingsView DataContext="{Binding SettingsPage}" />
             </StackPanel>
-        </Border>
-
-        <!-- Page content -->
-        <ContentControl Grid.Row="2" Content="{Binding CurrentPage}" />
+        </ScrollViewer>
     </Grid>
 </Window>

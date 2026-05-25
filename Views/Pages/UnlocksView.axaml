@@ -21,14 +21,6 @@
                         Command="{Binding MaxAllCommand}" />
             </StackPanel>
 
-            <!-- No game warning -->
-            <Border IsVisible="{Binding !CanToggle}"
-                    Padding="10,6" CornerRadius="6" BorderThickness="1"
-                    Background="#1AFF5555" BorderBrush="#FF5555">
-                <TextBlock Text="FH6 is not running — start the game first, then cheats will unlock."
-                           FontSize="12" Foreground="#FFB4B4" TextWrapping="Wrap" />
-            </Border>
-
             <!-- Status -->
             <Border IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                     Padding="10,6" CornerRadius="6" BorderThickness="1"
