@@ -10,47 +10,43 @@ Latest release: **[GitHub Releases](../../releases)** — download the `.zip`, e
 
 ## Features
 
+### Profile Values (runtime hooks)
+- **Credits** — set any amount (10K to 999M). Toggle on, then reopen the Credits tab to see the updated value.
+- **Wheelspins** — set count (10–999). Toggle on, then spin once for it to lock.
+- **Super Wheelspins** — set count (10–999). Same as Wheelspins — spin once to activate.
+- **Skill Points** — set any amount. Toggle on, then spend a point for the change to take effect.
+- **Sell Payout** — multiply car sell prices by any value.
+- **Drift Score** — multiply drift score by any value (5x, 10x, 50x, or custom).
+- **No Skill Break** — prevents skill chains from breaking on impacts.
+
+Uses inline code cave hooks with toggle+value slots — based on the paris' club approach (CALL-resolution with string-compare verification).
+
 ### Quick Actions
 - **Quick Start** — 999M Credits + Free Cars + Autoshow Unlock + Install Flags + All Cars
 - **Max All** — max Credits, Wheelspins, Super Wheelspins, Skill Points
 
-### Profile Values (code cave detours)
-- Credits, Wheelspins, Super Wheelspins, Skill Points, Sell Payout
-- Uses inline code cave hooks with toggle+value slots — the same approach used by ForzaMods AIO, Vynxly/FH6-Booster, and other trainers
-
-### Racing & World
-- Freeze AI, Teleport, Gravity, No Water Drag, Time of Day, Acceleration, Free Clothing
-
-### Scoring & Rewards
-- Drift Score x, Skill Score x, Prize Scale, Speed Trap x
-
-### Timers
-- Race Time Scale, Mission Time Scale, Remove Build Cap
-
 ### SQL Database (in-memory SQLite)
 - **Unlock Everything** — all SQL cheats in one click
-- Free Cars (LOCK), Autoshow (LOCK), Install Flags (LOCK)
-- Add All Cars, Free Upgrades (47 tables), Free Wheels, Full Autoshow
-- Unlock Upgrade Presets
-- Clear "NEW!" Tag
+- Free Cars (BaseCost=0), Autoshow Unlock, Install Flags — with persistent locks that re-apply every 10s
+- Add All Cars (CarBuckets approach), Free Upgrades (47 tables), Free Wheels, Full Autoshow
+- Unlock Upgrade Presets, Clear "NEW!" Tag
 
 ### Physics & Performance (SQL)
-- Drift Score 10x, Max Traction, Torque 2x, Reduce Drag
+- Drift Score 10x, Max Traction, Torque 2x, Reduce Drag 0.5x
 
 ## Anti-Cheat Bypass
 
-- CRC bypass with 5s heartbeat + jitter (XXH check pointer replacement)
-- Value Encryption bypass (RET at encryption prologue)
-- 5 integrity check patches
+- CRC bypass with heartbeat timer + jitter (XXH check pointer replacement)
+- 3/5 integrity check patches (MemCmp, CodeSection, Checksum)
 - Thread-safe patching with ExpectedOriginal sanity check
 - Pre-resolution: all hook targets are scanned before any hooks are installed
 
-## Signature System
+## Known Limitations
 
-- Primary + AltSignatures with progressive fallback (longest to shortest)
-- Context-aware validation (permission check pattern must exist near match)
-- Cross-cheat address deduplication
-- Struct offset extraction and logging
+- **PageHash and TextHash integrity patches not found** on the latest FH6 builds (2/5 integrity patches missing). This may cause delayed game crashes on some systems. A full disassembly is in progress to find the correct signatures.
+- **Value Encryption bypass signature not found** on latest builds. Some profile value changes may not persist between sessions.
+- **XP / Level modding** is not yet supported. See [issue #19](../../issues/19) for discussion.
+- Teleport, Freeze AI, timers, gravity, and other experimental cheats from earlier versions were removed — they used signatures that matched the wrong functions and didn't work reliably.
 
 ## Build from Source
 
@@ -64,12 +60,12 @@ dotnet publish -c Release -r win-x64 --self-contained
 
 | Who | Contribution |
 |-----|-------------|
-| **[paris' club](https://discord.gg/WSd3bRNJuJ)** | Core cheats, SQL features, CRC bypass |
-| **[ForzaMods](https://github.com/ForzaMods/Forza-Mods-AIO)** | AOB signatures for hook-based cheats |
-| **[Omkmakwana](https://github.com/Omkmakwana/FH6Trainer)** | NOP-sled approach, Add All Cars |
-| **[matkhl](https://www.unknowncheats.me/forum/other-games/752793)** | Free Upgrades SQL (47 tables), database dumper |
+| **[paris' club](https://discord.gg/WSd3bRNJuJ)** | Core profile cheats (CALL-resolution approach), SQL features, CRC bypass |
+| **[ForzaMods](https://github.com/ForzaMods/Forza-Mods-AIO)** | AOB signatures reference |
+| **[matkhl](https://www.unknowncheats.me/forum/other-games/752793)** | Free Upgrades SQL (47 tables), CarBuckets approach, database dumper |
+| **[Omkmakwana](https://github.com/Omkmakwana/FH6Trainer)** | Add All Cars reference |
 | **[Chaarkor](https://github.com/Chaarkoor)** | Original Avalonia UI shell, MVVM architecture |
-| **[changcheng967](https://github.com/changcheng967)** | All-in-one improvements, physics SQL cheats, code cave detours |
+| **[changcheng967](https://github.com/changcheng967)** | All-in-one integration, physics SQL cheats, code cave detours, UI |
 
 ## License
 
