@@ -930,30 +930,42 @@ public sealed class RuntimeHookEngine : IDisposable
         if (Interlocked.Exchange(ref _crcTimerRunning, 1) == 1) return;
         try
         {
+            if (!_crcBypassActive || _handle == IntPtr.Zero || _process?.HasExited != false) return;
+            var tickStart = Environment.TickCount64;
+            var hookCount = _hooks.Count;
+            var patchCount = _integrityPatches.Count;
+
             // Phase 1: restore originals atomically (all threads suspended)
             lock (_lock)
             {
                 if (!_crcBypassActive || _handle == IntPtr.Zero || _process?.HasExited != false) return;
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 var threads = SuspendAllGameThreads();
                 try
                 {
+                    var p1Fails = 0;
                     foreach (var det in _hooks.Values)
-                        WriteProtectedBytes(det.Address, det.Original);
+                    {
+                        try { WriteProtectedBytes(det.Address, det.Original); }
+                        catch (Exception ex) { p1Fails++; L($"CRC p1 restore {det.Name} failed: {ex.Message}"); }
+                    }
                     foreach (var ip in _integrityPatches)
-                        WriteProtectedBytes(ip.Address, ip.Original);
-                    WriteUInt64(_crcFunctionPointerAddress, _crcOriginalPointer);
+                    {
+                        try { WriteProtectedBytes(ip.Address, ip.Original); }
+                        catch (Exception ex) { L($"CRC p1 restore bypass {ip.Name} failed: {ex.Message}"); }
+                    }
+                    try { WriteUInt64(_crcFunctionPointerAddress, _crcOriginalPointer); }
+                    catch (Exception ex) { L($"CRC p1 restore CRC pointer failed: {ex.Message}"); }
+                    sw.Stop();
+                    L($"CRC tick: p1 restore done in {sw.ElapsedMilliseconds}ms (suspended {threads.Count} threads, {hookCount} hooks, {patchCount} bypasses, {p1Fails} hook failures)");
                 }
-                catch (Exception ex) { L($"CRC phase-1 (restore) failed: {ex.Message}"); return; }
                 finally { ResumeAllGameThreads(threads); }
             }
 
-            // Give the game a longer window (2s) to run its integrity checks cleanly.
-            // The old 1s window was too short — the check might not complete in time.
-            Thread.Sleep(2000);
+            // Clean window: let the game run integrity checks.
+            Thread.Sleep(500);
 
             // Retry any integrity bypasses that weren't found initially.
-            // Denuvo decrypts code pages on demand — after the game runs its checks
-            // during the clean window, those pages are now readable.
             if (_pendingBypasses.Count > 0)
                 RetryPendingBypasses();
 
@@ -961,20 +973,34 @@ public sealed class RuntimeHookEngine : IDisposable
             lock (_lock)
             {
                 if (!_crcBypassActive || _handle == IntPtr.Zero || _process?.HasExited != false) return;
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 var threads = SuspendAllGameThreads();
                 try
                 {
+                    var p2Fails = 0;
                     WriteUInt64(_crcFunctionPointerAddress, _crcRetAddress);
                     if (_valueEncryptionAddr != 0 && _valueEncryptionOriginal.Length > 0)
-                        WriteProtectedBytes(_valueEncryptionAddr, [0xC3]);
+                    {
+                        try { WriteProtectedBytes(_valueEncryptionAddr, [0xC3]); }
+                        catch (Exception ex) { L($"CRC p2 value-encryption failed: {ex.Message}"); }
+                    }
                     foreach (var ip in _integrityPatches)
-                        WriteProtectedBytes(ip.Address, ip.Replacement);
+                    {
+                        try { WriteProtectedBytes(ip.Address, ip.Replacement); }
+                        catch (Exception ex) { L($"CRC p2 re-apply bypass {ip.Name} failed: {ex.Message}"); }
+                    }
                     foreach (var det in _hooks.Values)
-                        WriteProtectedBytes(det.Address, det.Patch);
+                    {
+                        try { WriteProtectedBytes(det.Address, det.Patch); }
+                        catch (Exception ex) { p2Fails++; L($"CRC p2 re-apply {det.Name} failed: {ex.Message}"); }
+                    }
+                    sw.Stop();
+                    L($"CRC tick: p2 re-apply done in {sw.ElapsedMilliseconds}ms ({hookCount} hooks, {p2Fails} failures)");
                 }
-                catch (Exception ex) { L($"CRC phase-2 (re-apply) failed: {ex.Message}"); }
                 finally { ResumeAllGameThreads(threads); }
             }
+
+            L($"CRC tick: total {Environment.TickCount64 - tickStart}ms");
         }
         catch (Exception ex) { L($"CRC tick uncaught: {ex.Message}"); }
         finally
