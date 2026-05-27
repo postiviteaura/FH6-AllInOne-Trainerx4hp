@@ -798,6 +798,16 @@ public sealed class RuntimeHookEngine : IDisposable
              8, 2,
              [0x74],       // JZ
              [0xEB]),      // JMP (always skip TerminateProcess)
+
+            // 7. ResumeReboot: On GamePass, alt-tab triggers Windows suspend/resume.
+            // The PFGameSaves resume handler checks state and may decide to silently reboot.
+            // Patch the JNZ that gates the reboot paths to unconditional JMP (skip all 3).
+            // Pattern: MOVDQA + MOVDQU + MOV 0 + CMP [rip],4 + JNZ
+            ("ResumeReboot",
+             "66 0F 6F 05 ?? ?? ?? ?? F3 0F 7F 44 24 50 C6 44 24 40 00 80 3D ?? ?? ?? ?? 04 0F 85",
+             26, 6,
+             [0x0F, 0x85],   // JNZ rel32
+             [0x90, 0xE9]),  // NOP; JMP rel32 (displacement adjusted +1 at patch time)
         };
 
         foreach (var (name, sig, patchOffset, patchLen, expected, replace) in bypasses)
@@ -821,6 +831,18 @@ public sealed class RuntimeHookEngine : IDisposable
                     {
                         // Special case: replace CALL (5 bytes) with MOV EAX, 1 (5 bytes)
                         patch[0] = 0xB8; patch[1] = 0x01; patch[2] = 0x00; patch[3] = 0x00; patch[4] = 0x00;
+                    }
+                    else if (name == "ResumeReboot")
+                    {
+                        // JNZ rel32 (0F 85 XX XX XX XX) → NOP + JMP rel32 (90 E9 XX+1 XX XX XX)
+                        // JMP is 5 bytes (vs JNZ 6), so displacement increases by 1
+                        patch[0] = 0x90; // NOP
+                        patch[1] = 0xE9; // JMP rel32
+                        var origDisp = BitConverter.ToInt32(current, 2);
+                        var newDisp = origDisp + 1;
+                        var dispBytes = BitConverter.GetBytes(newDisp);
+                        patch[2] = dispBytes[0]; patch[3] = dispBytes[1];
+                        patch[4] = dispBytes[2]; patch[5] = dispBytes[3];
                     }
                     else
                     {
@@ -848,7 +870,7 @@ public sealed class RuntimeHookEngine : IDisposable
             }
             catch (Exception ex) { L($"Integrity bypass {name} failed: {ex.Message}"); }
         }
-        L($"Integrity bypasses applied: {_integrityPatches.Count}/6 (pending: {_pendingBypasses.Count})");
+        L($"Integrity bypasses applied: {_integrityPatches.Count}/7 (pending: {_pendingBypasses.Count})");
     }
 
     /// <summary>
