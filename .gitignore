@@ -19,3 +19,23 @@ Thumbs.db
 # Local
 out/
 out_folder/
+
+# Publish outputs
+publish*/
+
+# Release zips
+*.zip
+
+# Reverse engineering artifacts
+GhidraAnalysis/*.py
+GhidraAnalysis/*.java
+GhidraAnalysis/*.log
+GhidraAnalysis/*.txt
+GhidraAnalysis/*.ps1
+GhidraAnalysis/*.md
+GhidraAnalysis/ghidra_projects/
+GhidraAnalysis/ghidra_scripts/
+
+# Misc
+issue*.log
+trainer.log
