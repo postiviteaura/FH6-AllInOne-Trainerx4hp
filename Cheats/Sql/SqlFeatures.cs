@@ -128,11 +128,11 @@ internal static class SqlFeatureCatalog
             ]),
 
         SqlFeature.TorqueScale => new(
-            "Torque Scale (2x)",
-            "Sets GameTorqueScale = 2.0 on all cars — doubles engine torque output.",
+            "Torque Scale (4x)",
+            "Sets GameTorqueScale = 4.0 on all cars — doubles engine torque output.",
             [
                 "CREATE TABLE IF NOT EXISTS _backup_TorqueScale AS SELECT Id, GameTorqueScale FROM Data_Car;",
-                "UPDATE Data_Car SET GameTorqueScale = 2.0;",
+                "UPDATE Data_Car SET GameTorqueScale = 4.0;",
             ]),
 
         SqlFeature.DragScale => new(
