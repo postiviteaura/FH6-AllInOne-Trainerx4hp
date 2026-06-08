@@ -1081,10 +1081,11 @@ public sealed class RuntimeHookEngine : IDisposable
 
     private void StartCrcTimer()
     {
-        // First tick fires quickly (3s) to establish the clean window early.
-        // Subsequent ticks use a shorter 5s base interval with ±1.5s random jitter
-        // to prevent the game's integrity check from syncing with our timer.
-        _crcTimer ??= new Timer(CrcTimerTick, null, 3_000, Timeout.Infinite);
+        // CRC timer disabled — all patches are permanent and the CRC function
+        // pointer stays pointed at our RET stub permanently. No clean window
+        // needed because the CRC function never runs (never hashes .text).
+        // Previous versions toggled patches during a clean window so the CRC
+        // hash would match, but permanent patches make the hash mismatch worse.
     }
 
     /// <summary>
