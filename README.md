@@ -4,9 +4,25 @@ An all-in-one trainer for **Forza Horizon 6** — runtime hooks for player profi
 
 > **Offline mode only.** This trainer modifies game memory. Online play (Rivals, Eventlab, Multiplayer, leaderboards) will not work and may result in a ban. Run FH6 in offline mode before using.
 
+## Status
+
+The current release is the **v6.6.0** pre-release.
+
+- **No anti-cheat bypass is used or needed** for offline single-player. Earlier versions shipped a "CRC / integrity bypass" that reverse engineering later showed was not bypassing anything at all — it was corrupting a normal game subsystem and causing the crashes users reported. v6.6.0 removes all of it; the cheats operate through their own hooks only. (FH6 does not use Denuvo.)
+- **Known issue:** the game may still crash shortly after enabling a cheat on some builds. This is under active investigation — please see [issue #130](../../issues/130) to test the current build and report what you see.
+- **Game build:** cheats are signed against the current Forza build (v379.939). On newer builds (e.g. v382.893) some cheats may not resolve until the signatures are refreshed.
+
 ## Download
 
 Latest release: **[GitHub Releases](../../releases)** — download the `.zip`, extract, and run `FH6AllInOneTrainer.exe` as Administrator.
+
+## How to use
+
+1. Start Forza Horizon 6 and **load fully into the world** (be driving, not in a menu or loading screen).
+2. Launch the trainer as Administrator and attach.
+3. Enable the cheats you want, then play.
+
+> Enable cheats only once you are fully in-game. Attaching or toggling during loading or intro screens is more likely to cause issues.
 
 ## Features
 
@@ -21,7 +37,7 @@ Latest release: **[GitHub Releases](../../releases)** — download the `.zip`, e
 
 > **Tip:** Wheelspins must be enabled for Super Wheelspins (and some other cheats) to take effect. Enable Wheelspins first, then add your other cheats.
 
-Uses inline code cave hooks with toggle+value slots — based on the paris' club approach (CALL-resolution with string-compare verification).
+Uses inline code-cave hooks with toggle+value slots — based on the paris' club approach (CALL-resolution with string-compare verification).
 
 ### Quick Actions
 - **Quick Start** — 999M Credits + Free Cars + Autoshow Unlock + Install Flags + All Cars
@@ -36,25 +52,11 @@ Uses inline code cave hooks with toggle+value slots — based on the paris' club
 ### Physics & Performance (SQL)
 - Drift Score 10x, Max Traction, Torque 2x, Reduce Drag 0.5x
 
-## Anti-Cheat Bypass
-
-- CRC bypass with heartbeat timer + jitter (XXH check pointer replacement)
-- 7/7 integrity check patches (MemCmp, PageHash, TextHash, CodeSection, Checksum, TerminateGuard, ResumeReboot)
-- **TerminateGuard** — patches the conditional `TerminateProcess` call that caused ~10 minute auto-shutdown
-- **ResumeReboot** — prevents GamePass/Windows Store silent reboot on alt-tab by patching the PFGameSaves resume handler
-- **IAT shutdown hooks** — replaces `TerminateProcess` and `ExitProcess` IAT entries with stubs that block self-termination (catches ALL shutdown call sites, not just known ones)
-- Process death detection with exit code logging for diagnostics
-- Deferred retry for Denuvo-encrypted pages — signatures that aren't available on first scan are retried during the CRC heartbeat
-- Per-hook error handling — if one hook fails (e.g., Denuvo-protected page), other cheats continue working
-- CRC spike detection — aborts tick if Phase 1 restore takes >500ms
-- Process death detection — stops writing to dead process, disarms timer
-- Thread-safe patching with ExpectedOriginal sanity check
-- Pre-resolution: all hook targets are scanned before any hooks are installed
-
 ## Known Limitations
 
 - **XP / Level modding** is not yet supported. See [issue #19](../../issues/19) for discussion.
 - **Wheelspins dependency** — Super Wheelspins (and possibly Credits) require Wheelspins to be enabled first to take effect.
+- **Crash after enabling a cheat** — under investigation, see [issue #130](../../issues/130).
 
 ## Build from Source
 
@@ -68,7 +70,7 @@ dotnet publish -c Release -r win-x64 --self-contained
 
 | Who | Contribution |
 |-----|-------------|
-| **[paris' club](https://discord.gg/WSd3bRNJuJ)** | Core profile cheats (CALL-resolution approach), SQL features, CRC bypass |
+| **[paris' club](https://discord.gg/WSd3bRNJuJ)** | Core profile cheats (CALL-resolution approach), SQL features |
 | **[ForzaMods](https://github.com/ForzaMods/Forza-Mods-AIO)** | AOB signatures reference |
 | **[matkhl](https://www.unknowncheats.me/forum/other-games/752793)** | Free Upgrades SQL (47 tables), CarBuckets approach, database dumper |
 | **[Omkmakwana](https://github.com/Omkmakwana/FH6Trainer)** | Add All Cars reference |
