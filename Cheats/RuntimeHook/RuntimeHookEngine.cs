@@ -683,49 +683,18 @@ public sealed class RuntimeHookEngine : IDisposable
         var bytes = ReadBytes(_mainBase, _mainSize);
         if (bytes.Length == 0) throw new InvalidOperationException("Could not read main module for CRC bypass.");
 
-        // Allocate a dedicated RET stub in our own cave memory instead of scavenging
-        // a random C3 byte from the game's .text section (which is fragile — the byte
-        // could be in the middle of an instruction, or the game could verify that the
-        // CRC function pointer falls within expected code ranges).
-        // Denuvo has 3 independent CRC checker instances, each with its own vtable
-        // and function pointer. All 3 must be bypassed — the AOB matches all 3 sites.
-        var crcSig = "48 8B D9 48 8D 05 ? ? ? ? 48 89 01 E8 ? ? ? ? 48 8B CB 48 83 C4 20 5B E9";
-        var crcPattern = Pattern.Parse(crcSig);
-        var crcMatches = new List<(ulong fnPtrAddr, ulong origFnPtr)>();
-
-        foreach (var off in Pattern.FindAll(bytes, crcPattern, 32))
-        {
-            var sigAddr = _mainBase + (ulong)off;
-            var leaStart = sigAddr + 3;
-            var leaDisp = ReadInt32(leaStart + 3);
-            var tableBase = leaStart + 7 + (ulong)leaDisp;
-            var fnPtrAddr = tableBase + 48;
-            var origFnPtr = ReadUInt64(fnPtrAddr);
-            if (origFnPtr == 0) continue;
-            L($"CRC: sig found at 0x{sigAddr:X}, table=0x{tableBase:X}, fnPtr=0x{fnPtrAddr:X}, origFunc=0x{origFnPtr:X}");
-            crcMatches.Add((fnPtrAddr, origFnPtr));
-        }
-
-        if (crcMatches.Count == 0)
-            throw new InvalidOperationException("CRC bypass signature not found (FH6 likely updated).");
-
-        // Allocate one RET stub and point all 3 function pointers to it.
-        var retStubAddr = AllocateNear(crcMatches[0].fnPtrAddr, 4096);
-        WriteBytes(retStubAddr, [0x31, 0xC0, 0xC3]); // XOR EAX,EAX; RET — returns 0 (success)
-
-        foreach (var (fnPtrAddr, origFnPtr) in crcMatches)
-        {
-            WriteUInt64(fnPtrAddr, retStubAddr);
-            L($"CRC bypass: fnPtr at 0x{fnPtrAddr:X} -> stub 0x{retStubAddr:X} (was 0x{origFnPtr:X})");
-        }
-
-        _crcFunctionPointerAddress = crcMatches[0].fnPtrAddr;
-        _crcOriginalPointer = crcMatches[0].origFnPtr;
-        _crcRetAddress = retStubAddr;
-        _crcRetStubAddress = retStubAddr;
+        // PHASE 1 (v7.0-pre): CRC bypass + ALL integrity patches REMOVED.
+        // RE (Ghidra decompilation of the v379.939 live binary) confirmed the 3 "CRC
+        // checker" objects are a thread-safe flag/bitfield MANAGER — NOT an integrity
+        // scanner and NOT anti-cheat. Replacing their check function with a RET-0 stub
+        // makes flag queries report false, breaking real game logic → crash.
+        // The "integrity check" patches (MemCmp/PageHash/TextHash/CodeSection/Checksum/
+        // TerminateGuard/ResumeReboot/PlayFab) are CONSUMERS of that flag manager, so
+        // patching them also breaks real game logic. None of them protect against cheats.
+        // Cheats here operate purely via their own code-cave hooks; the game's integrity
+        // system is left fully intact. This build tests whether the bypass was the crash.
         _crcBypassActive = true;
-        L($"CRC bypass armed: {crcMatches.Count} instances patched");
-        ApplyIntegrityBypasses(bytes);
+        L("CRC/integrity bypass DISABLED (v7.0-pre: flag-manager ghost removed — game integrity left intact).");
         ApplyValueEncryptionBypass(bytes);
         InstallSeasonHook(bytes);
         StartCrcTimer();

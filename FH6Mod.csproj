@@ -17,16 +17,16 @@
     <DebugType>embedded</DebugType>
     <AssemblyName>FH6AllInOneTrainer</AssemblyName>
     <RootNamespace>FH6Mod</RootNamespace>
-    <DefaultItemExcludes>$(DefaultItemExcludes);dumps\**;issue_logs\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);dumps\**;issue_logs\**;tools\**</DefaultItemExcludes>
     <Title>FH6 All-in-One Trainer</Title>
     <Product>FH6 All-in-One Trainer</Product>
     <Authors>changcheng967 · Chaarkor (UI) · paris' club (cheats) · ForzaMods (signatures)</Authors>
     <Company>changcheng967</Company>
     <Copyright>© 2026 changcheng967 · GPL-3.0</Copyright>
     <Description>All-in-one Forza Horizon 6 trainer with code cave detours, SQL database access, and live cheat toggling.</Description>
-    <Version>6.5.0</Version>
-    <AssemblyVersion>6.5.0.0</AssemblyVersion>
-    <FileVersion>6.5.0.0</FileVersion>
+    <Version>6.6.0</Version>
+    <AssemblyVersion>6.6.0.0</AssemblyVersion>
+    <FileVersion>6.6.0.0</FileVersion>
     <NeutralLanguage>en-US</NeutralLanguage>
   </PropertyGroup>
 
