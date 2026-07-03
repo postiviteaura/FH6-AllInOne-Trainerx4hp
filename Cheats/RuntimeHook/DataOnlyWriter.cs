@@ -105,25 +105,49 @@ public sealed class DataOnlyWriter
     }
 
     /// <summary>
-    /// Find the profile struct base by locating an address whose [addr+fieldOffset]
-    /// equals currentFieldValue, verified by a sibling field at a different offset.
-    /// Returns the struct base (address - fieldOffset) for a confirmed match, or 0.
-    ///
-    /// The two-field check makes the match unique (avoids writing random int fields
-    /// that happen to hold the same value).
+    /// Cached profile struct base — found once via scan, then reused for all
+    /// subsequent writes (no re-scanning). The struct address is stable for the
+    /// game session, so the user only enters their current value ONCE.
+    /// </summary>
+    private ulong _cachedBase;
+    private bool _hasCache;
+
+    /// <summary>
+    /// Find the profile struct base. If we've found it before (cached), verify the
+    /// cache is still valid and return it instantly (no scan). Otherwise scan for
+    /// the current value + verify sibling, then cache.
     /// </summary>
     public ulong FindStruct(int fieldOffset, int currentFieldValue, int verifyOffset, int verifyValue)
     {
+        // Fast path: cached + still valid
+        if (_hasCache && _cachedBase != 0)
+        {
+            // Verify the cache is still the right struct (read two fields)
+            if (_e.ReadInt32Public(_cachedBase + (ulong)fieldOffset) == currentFieldValue ||
+                _e.ReadInt32Public(_cachedBase + (ulong)verifyOffset) == verifyValue)
+                return _cachedBase;
+            // Cache stale — re-scan
+            _hasCache = false;
+        }
+
         foreach (var hit in ScanInt32(currentFieldValue))
         {
             if (hit < (ulong)fieldOffset) continue;
             ulong baseAddr = hit - (ulong)fieldOffset;
-            // verify sibling
             if (_e.ReadInt32Public(baseAddr + (ulong)verifyOffset) == verifyValue)
+            {
+                _cachedBase = baseAddr;
+                _hasCache = true;
                 return baseAddr;
+            }
         }
         return 0;
     }
+
+    /// <summary>
+    /// Invalidate the cache (e.g. when the game restarts or the profile changes).
+    /// </summary>
+    public void InvalidateCache() { _hasCache = false; _cachedBase = 0; }
 
     /// <summary>
     /// Set a profile field the safe way: find the struct (scan + verify), then
